@@ -1,0 +1,213 @@
+一、MySQL 体系结构
+
+1. MySQL 分层架构
+MySQL 分为三层：
+第一层：连接层，负责连接处理、认证授权、线程池管理。
+第二层：SQL核心服务层，包括SQL解析器、优化器、缓存、执行器，是MySQL的核心。
+第三层：存储引擎层，负责数据的存储和提取，插件式架构，支持InnoDB、MyISAM等。
+
+2. 连接管理
+MySQL是单进程多线程架构，每个客户端连接对应一个线程。
+连接数由max_connections参数控制，默认151，最大可设置为16384。
+连接方式：TCP/IP连接、Unix域套接字、命名管道。
+
+二、存储引擎
+
+1. InnoDB（默认存储引擎）
+特点：支持事务ACID、支持行级锁、支持外键、支持MVCC（多版本并发控制）。
+适用场景：高并发、需要事务支持、需要行锁的业务场景，如订单系统、支付系统。
+文件组成：表结构文件.frm、数据文件.ibd、日志文件ib_logfile。
+
+2. MyISAM
+特点：不支持事务、只支持表级锁、查询速度快、不支持外键。
+适用场景：以查询为主、并发较低的报表类应用。
+文件组成：表结构.frm、数据.MYD、索引.MYI。
+
+3. Memory 引擎
+数据存储在内存中，重启后数据丢失，适合做临时表和缓存。
+
+4. 查看与修改存储引擎
+查看表的引擎：SHOW TABLE STATUS LIKE '表名';
+建表时指定引擎：CREATE TABLE 表名(...) ENGINE=InnoDB;
+修改引擎：ALTER TABLE 表名 ENGINE = InnoDB;
+
+三、MySQL 数据类型
+
+1. 数值类型
+TINYINT：1字节，范围-128到127。
+INT：4字节，范围约-21亿到21亿。
+BIGINT：8字节，大整数。
+DECIMAL(M,D)：精确小数，M总位数，D小数位数，适合存储金额。
+FLOAT/DOUBLE：浮点型，存在精度丢失，不建议用于金额计算。
+
+2. 字符串类型
+CHAR(M)：定长字符串，M范围0-255，不足补空格，查询速度快，适合固定长度如手机号。
+VARCHAR(M)：变长字符串，M范围0-65535，节省空间，适合长度不固定的字符串。
+TEXT：长文本，最大64KB，适合存文章内容。
+BLOB：二进制大对象，适合存图片、文件等二进制数据。
+
+3. 日期时间类型
+DATE：日期，格式YYYY-MM-DD。
+TIME：时间，格式HH:MM:SS。
+DATETIME：日期时间，范围1000-9999年，占8字节。
+TIMESTAMP：时间戳，范围1970-2038年，占4字节，自动随时区转换。
+
+4. 类型选择原则
+能用数值类型就不用字符串；金额用DECIMAL不用FLOAT；固定长度用CHAR，变长用VARCHAR；
+VARCHAR长度不是越大越好，会影响排序时的内存分配。
+
+四、MySQL 常用函数
+
+1. 字符串函数
+CONCAT(s1, s2, ...)：拼接字符串。
+LENGTH(str)：返回字符串字节长度。
+CHAR_LENGTH(str)：返回字符串字符长度。
+SUBSTRING(str, pos, len)：截取子串。
+TRIM(str)：去除首尾空格。
+UPPER(str)/LOWER(str)：转大写/小写。
+REPLACE(str, from, to)：字符串替换。
+
+2. 数值函数
+ROUND(x, d)：四舍五入保留d位小数。
+CEIL(x)/FLOOR(x)：向上取整/向下取整。
+MOD(a, b)：取余。
+ABS(x)：绝对值。
+
+3. 日期函数
+NOW()：当前日期时间。
+CURDATE()：当前日期。
+CURTIME()：当前时间。
+DATE_FORMAT(date, format)：格式化日期，如DATE_FORMAT(NOW(), '%Y-%m-%d')。
+DATEDIFF(d1, d2)：计算两个日期相差天数。
+YEAR(date)/MONTH(date)/DAY(date)：提取年/月/日。
+
+4. 聚合函数
+COUNT()：统计行数。
+SUM()：求和。
+AVG()：平均值。
+MAX()/MIN()：最大/最小值。
+GROUP_CONCAT()：分组后将列值拼接成一个字符串。
+
+5. 控制流函数
+IF(condition, true_value, false_value)：条件判断。
+IFNULL(v1, v2)：如果v1为NULL则返回v2。
+COALESCE(v1, v2, ...)：返回第一个非NULL值。
+
+五、MySQL 事务
+
+1. 事务的ACID特性
+原子性（Atomicity）：事务中的操作要么全部成功，要么全部失败回滚。
+一致性（Consistency）：事务执行前后，数据库从一个一致状态到另一个一致状态。
+隔离性（Isolation）：多个事务之间互不干扰。
+持久性（Durability）：事务一旦提交，对数据的修改是永久的。
+
+2. 事务的使用
+开启事务：START TRANSACTION; 或 BEGIN;
+提交事务：COMMIT;
+回滚事务：ROLLBACK;
+设置保存点：SAVEPOINT 名称; 回滚到保存点：ROLLBACK TO SAVEPOINT 名称;
+
+3. 自动提交
+MySQL默认开启自动提交（autocommit=1），每条SQL自动作为一个事务提交。
+手动事务需要先执行 SET autocommit = 0; 再写SQL。
+
+六、MySQL 索引基础
+
+1. 索引的概念
+索引是帮助MySQL高效获取数据的数据结构，类似于书的目录。
+索引本身也占存储空间，会降低写入速度（INSERT/UPDATE/DELETE需要同步维护索引），但大幅提升查询速度。
+
+2. 索引分类
+按数据结构分：B+树索引（默认）、哈希索引、全文索引。
+按物理存储分：聚簇索引（数据和索引存在一起）、非聚簇索引（二级索引，叶子节点存主键值）。
+按字段特性分：主键索引（PRIMARY KEY）、唯一索引（UNIQUE）、普通索引（INDEX）、联合索引、全文索引。
+
+3. 聚簇索引与二级索引
+聚簇索引：一张表只有一个，数据行按主键顺序存储，叶子节点直接存整行数据。
+二级索引（普通索引）：叶子节点存储主键值，查询时需要回表——先查二级索引拿到主键，再到聚簇索引查整行数据。
+覆盖索引：如果查询的列都在二级索引中，不需要回表，直接返回数据。
+
+4. 联合索引与最左前缀原则
+联合索引：对多个字段一起建索引，如 INDEX(a, b, c)。
+最左前缀原则：查询时从索引最左列开始匹配，不能跳过中间列。
+INDEX(a, b, c)能支持：a、a,b、a,b,c的查询；不支持b、c、b,c的查询。
+范围查询（>、<、LIKE）之后的列无法使用索引。
+
+七、MySQL 视图
+
+1. 视图的概念
+视图是一张虚拟表，本身不存储数据，数据来自基表。视图的本质是一条保存的SQL查询语句。
+作用：简化复杂查询、权限控制（只暴露部分列给用户）、保持数据独立性。
+
+2. 视图的操作
+创建视图：CREATE VIEW 视图名 AS SELECT语句;
+查看视图：SELECT * FROM 视图名;
+修改视图：CREATE OR REPLACE VIEW 视图名 AS SELECT语句;
+删除视图：DROP VIEW 视图名;
+
+3. 可更新视图
+简单视图（单表、不含聚合、不含DISTINCT、不含GROUP BY）可以进行INSERT/UPDATE/DELETE。
+包含聚合函数、GROUP BY、DISTINCT、多表连接的视图通常不可更新。
+
+八、MySQL 存储过程与函数
+
+1. 存储过程
+预编译的一组SQL语句集合，存储在数据库中，可以被反复调用。
+优点：减少网络交互、封装复杂操作、提高执行效率。
+创建示例：
+DELIMITER //
+CREATE PROCEDURE GetEmpById(IN emp_id INT)
+BEGIN
+    SELECT * FROM employees WHERE id = emp_id;
+END //
+DELIMITER ;
+调用：CALL GetEmpById(1);
+
+2. 存储函数
+与存储过程类似，但必须有返回值。
+创建示例：
+CREATE FUNCTION GetEmpName(emp_id INT) RETURNS VARCHAR(50)
+BEGIN
+    DECLARE emp_name VARCHAR(50);
+    SELECT name INTO emp_name FROM employees WHERE id = emp_id;
+    RETURN emp_name;
+END;
+调用：SELECT GetEmpName(1);
+
+九、MySQL 触发器
+
+1. 触发器概念
+当表发生INSERT/UPDATE/DELETE操作时，自动执行预先定义的SQL语句。
+作用：实现数据联动、审计日志、数据校验。
+
+2. 触发器类型
+BEFORE INSERT / AFTER INSERT
+BEFORE UPDATE / AFTER UPDATE
+BEFORE DELETE / AFTER DELETE
+创建示例：
+CREATE TRIGGER tri_log AFTER INSERT ON orders FOR EACH ROW
+BEGIN
+    INSERT INTO order_log(order_id, action) VALUES (NEW.id, 'created');
+END;
+NEW表示新插入的行，OLD表示更新前/删除前的旧行。
+
+十、MySQL 常用命令
+
+1. 数据库操作
+查看所有数据库：SHOW DATABASES;
+创建数据库：CREATE DATABASE 库名 CHARACTER SET utf8mb4;
+使用数据库：USE 库名;
+删除数据库：DROP DATABASE 库名;
+
+2. 表操作
+查看所有表：SHOW TABLES;
+查看表结构：DESC 表名;
+查看建表语句：SHOW CREATE TABLE 表名;
+删除表：DROP TABLE 表名;
+清空表：TRUNCATE TABLE 表名;
+
+3. 其他常用命令
+查看当前版本：SELECT VERSION();
+查看当前用户：SELECT USER();
+查看当前数据库：SELECT DATABASE();
+查看执行计划：EXPLAIN SELECT ...;

@@ -1,0 +1,183 @@
+一、SQL基础查询语法
+
+1. SELECT语句基本结构
+SELECT 列名 FROM 表名 WHERE 条件 GROUP BY 分组列 HAVING 分组过滤 ORDER BY 排序列 LIMIT 条数;
+执行顺序：FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT
+
+2. 查询所有列
+语法：SELECT * FROM 表名;
+说明：*表示查询表中所有列，生产环境建议明确列出需要的列名，避免查询不必要的数据。
+示例：SELECT * FROM students;
+
+3. 去重查询 DISTINCT
+作用：去除查询结果中的重复行。
+语法：SELECT DISTINCT 列名 FROM 表名;
+注意：DISTINCT必须放在所有列名的最前面；对多列去重时会组合所有列的值判断是否重复。
+示例：SELECT DISTINCT department FROM employees;
+
+4. 列别名 AS
+作用：为查询结果的列或表指定临时别名，提升可读性。
+语法：SELECT 列名 AS 别名 FROM 表名;
+注意：AS可以省略；别名中如果包含空格需要用引号括起来。
+示例：SELECT name AS 姓名, salary AS 年薪 FROM employees;
+
+二、WHERE条件过滤
+
+1. 比较运算符
+包括：=（等于）、<>或!=（不等于）、>（大于）、<（小于）、>=（大于等于）、<=（小于等于）。
+示例：SELECT * FROM employees WHERE salary > 10000;
+
+2. 逻辑运算符
+包括：AND（并且）、OR（或者）、NOT（非）。
+优先级：NOT > AND > OR，建议用括号明确运算顺序。
+示例：SELECT * FROM employees WHERE department = '技术部' AND salary > 8000;
+
+3. BETWEEN AND 范围查询
+作用：筛选在某个连续范围内的值，包含边界值。
+语法：WHERE 列名 BETWEEN 值1 AND 值2;
+示例：SELECT * FROM employees WHERE age BETWEEN 25 AND 35;
+
+4. IN 集合查询
+作用：筛选值在某个离散集合内的记录。
+语法：WHERE 列名 IN (值1, 值2, 值3);
+示例：SELECT * FROM employees WHERE department IN ('技术部', '产品部', '运营部');
+
+5. LIKE 模糊查询
+作用：按模式匹配字符串。
+通配符：%表示任意多个字符（包括0个），_表示任意单个字符。
+示例：SELECT * FROM students WHERE name LIKE '张%';
+
+6. IS NULL / IS NOT NULL
+作用：判断字段是否为NULL值。
+注意：不能用 = NULL 来判断空值，必须使用 IS NULL。
+示例：SELECT * FROM employees WHERE email IS NULL;
+
+三、GROUP BY 分组与聚合
+
+1. 常用聚合函数
+COUNT()：统计行数；SUM()：求和；AVG()：平均值；MAX()：最大值；MIN()：最小值。
+注意：COUNT(*)统计所有行，COUNT(列名)统计该列非NULL的行数。
+示例：SELECT department, COUNT(*) AS 人数, AVG(salary) AS 平均工资 FROM employees;
+
+2. GROUP BY 分组
+作用：按一个或多个列对结果集进行分组，通常配合聚合函数使用。
+语法：SELECT 分组列, 聚合函数 FROM 表名 GROUP BY 分组列;
+注意：SELECT中出现的非聚合列，必须全部出现在GROUP BY子句中。
+示例：SELECT department, COUNT(*) FROM employees GROUP BY department;
+
+3. HAVING 分组后过滤
+作用：对GROUP BY分组后的结果进行过滤，类似于WHERE但作用于分组之后。
+区别：WHERE在分组前过滤行，HAVING在分组后过滤组；HAVING中可以使用聚合函数，WHERE中不能。
+示例：SELECT department, AVG(salary) AS avg_sal FROM employees GROUP BY department HAVING avg_sal > 10000;
+
+四、ORDER BY 排序
+
+1. 升序与降序
+ASC：升序（默认），DESC：降序。
+语法：ORDER BY 列名 ASC/DESC;
+示例：SELECT * FROM employees ORDER BY salary DESC;
+
+2. 多列排序
+先按第一列排序，第一列相同时再按第二列排序。
+示例：SELECT * FROM employees ORDER BY department ASC, salary DESC;
+
+五、LIMIT 分页
+
+作用：限制返回结果的行数，常用于分页查询。
+语法：LIMIT 偏移量, 条数; 或 LIMIT 条数 OFFSET 偏移量;
+示例：SELECT * FROM employees ORDER BY id LIMIT 10, 20;  -- 跳过10条，取20条
+
+六、JOIN 多表连接
+
+1. INNER JOIN 内连接
+作用：只返回两表中匹配成功的行。
+语法：SELECT 列名 FROM 表1 INNER JOIN 表2 ON 表1.外键 = 表2.主键;
+示例：SELECT e.name, d.department_name FROM employees e INNER JOIN departments d ON e.dept_id = d.id;
+
+2. LEFT JOIN 左连接
+作用：返回左表所有行，右表中匹配不到的列显示为NULL。
+示例：SELECT e.name, d.department_name FROM employees e LEFT JOIN departments d ON e.dept_id = d.id;
+
+3. RIGHT JOIN 右连接
+作用：返回右表所有行，左表中匹配不到的列显示为NULL。
+示例：SELECT e.name, d.department_name FROM employees e RIGHT JOIN departments d ON e.dept_id = d.id;
+
+4. 多表连接
+多个表依次JOIN，每个JOIN都需要写ON条件。
+示例：SELECT e.name, d.dept_name, p.position_name FROM employees e JOIN departments d ON e.dept_id=d.id JOIN positions p ON e.position_id=p.id;
+
+七、子查询
+
+1. WHERE子句中的子查询
+子查询嵌套在WHERE条件中，作为过滤条件的值。
+示例：SELECT * FROM employees WHERE salary > (SELECT AVG(salary) FROM employees);
+
+2. IN子查询
+配合IN使用，子查询返回一个集合。
+示例：SELECT * FROM employees WHERE dept_id IN (SELECT id FROM departments WHERE location = '北京');
+
+3. EXISTS子查询
+作用：判断子查询是否返回结果，返回TRUE/FALSE，不关心具体数据。
+示例：SELECT * FROM departments d WHERE EXISTS (SELECT 1 FROM employees e WHERE e.dept_id = d.id);
+
+4. FROM子句中的子查询（派生表）
+子查询结果作为临时表出现在FROM后面。
+示例：SELECT dept_avg.department, dept_avg.avg_sal FROM (SELECT department, AVG(salary) AS avg_sal FROM employees GROUP BY department) AS dept_avg WHERE dept_avg.avg_sal > 10000;
+
+八、UNION 合并结果集
+
+1. UNION
+作用：合并多个SELECT的结果集，自动去除重复行。
+要求：每个SELECT的列数必须相同，对应列的数据类型必须兼容。
+示例：SELECT name FROM students UNION SELECT name FROM teachers;
+
+2. UNION ALL
+作用：合并结果集但不去重，性能比UNION好（不需要排序去重）。
+示例：SELECT name FROM students UNION ALL SELECT name FROM teachers;
+
+九、CASE WHEN 条件表达式
+
+1. 简单CASE
+语法：CASE 列 WHEN 值1 THEN 结果1 WHEN 值2 THEN 结果2 ELSE 默认结果 END;
+示例：SELECT name, CASE department WHEN 'tech' THEN '技术部' WHEN 'product' THEN '产品部' ELSE '其他' END AS dept_name FROM employees;
+
+2. 搜索CASE
+语法：CASE WHEN 条件1 THEN 结果1 WHEN 条件2 THEN 结果2 ELSE 默认结果 END;
+示例：SELECT name, CASE WHEN salary >= 20000 THEN '高收入' WHEN salary >= 10000 THEN '中等收入' ELSE '普通' END AS level FROM employees;
+
+十、INSERT 插入数据
+
+1. 插入单行
+语法：INSERT INTO 表名(列1, 列2, ...) VALUES (值1, 值2, ...);
+注意：列名可以省略，但VALUES的值必须与表定义的列顺序一一对应。
+示例：INSERT INTO students(name, age, gender) VALUES ('张三', 20, '男');
+
+2. 插入多行
+语法：INSERT INTO 表名(列1, 列2) VALUES (值1, 值2), (值3, 值4), ...;
+示例：INSERT INTO students(name, age) VALUES ('李四', 21), ('王五', 22);
+
+3. 插入查询结果
+语法：INSERT INTO 表名(列1, 列2) SELECT 列1, 列2 FROM 另一个表 WHERE 条件;
+示例：INSERT INTO students_backup(name, age) SELECT name, age FROM students WHERE create_time < '2024-01-01';
+
+十一、UPDATE 更新数据
+
+1. 单表更新
+语法：UPDATE 表名 SET 列1 = 值1, 列2 = 值2 WHERE 条件;
+注意：WHERE条件非常重要，不加WHERE会更新全表所有行。
+示例：UPDATE employees SET salary = salary * 1.1 WHERE department = '技术部';
+
+2. 多表更新
+语法：UPDATE 表1 JOIN 表2 ON 条件 SET 表1.列 = 值 WHERE 条件;
+示例：UPDATE employees e JOIN departments d ON e.dept_id = d.id SET e.salary = e.salary * 1.05 WHERE d.location = '北京';
+
+十二、DELETE 删除数据
+
+1. 删除指定行
+语法：DELETE FROM 表名 WHERE 条件;
+注意：不加WHERE会删除全表数据，生产环境务必谨慎。
+示例：DELETE FROM students WHERE id = 100;
+
+2. TRUNCATE与DELETE的区别
+DELETE：逐行删除，可带WHERE，可回滚，速度慢，自增列不重置。
+TRUNCATE：直接清空整表，不可带WHERE，不可回滚，速度快，自增列重置为初始值。

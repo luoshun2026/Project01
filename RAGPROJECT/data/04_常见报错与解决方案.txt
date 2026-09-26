@@ -1,0 +1,141 @@
+一、连接类错误
+
+1. ERROR 2003 (HY000): Can't connect to MySQL server
+原因：MySQL服务未启动、端口错误、防火墙拦截、IP未授权。
+排查步骤：
+（1）确认MySQL服务是否启动：Windows查看服务，Linux执行 systemctl status mysql。
+（2）确认端口：默认3306，使用 netstat -tlnp | grep 3306 检查端口监听。
+（3）确认防火墙：开放3306端口。
+（4）确认用户权限：用户是否允许从远程IP连接，执行 SELECT user,host FROM mysql.user;
+
+2. ERROR 1045 (28000): Access denied for user 'root'@'localhost'
+原因：用户名或密码错误、用户没有对应主机的登录权限。
+解决：
+（1）确认密码正确，注意大小写。
+（2）登录后执行 GRANT ALL ON *.* TO 'user'@'%' IDENTIFIED BY 'password'; FLUSH PRIVILEGES;
+（3）如果忘记root密码，可在配置文件加 skip-grant-tables 启动后重置。
+
+3. Too many connections
+原因：并发连接数超过max_connections限制。
+解决：
+（1）临时调整：SET GLOBAL max_connections = 1000;
+（2）永久调整：配置文件my.cnf中设置 max_connections=1000。
+（3）检查是否有连接泄漏（未关闭的数据库连接）。
+
+二、SQL语法类错误
+
+4. ERROR 1064 (42000): You have an error in your SQL syntax
+原因：SQL语法错误，常见原因：
+（1）关键字拼写错误，如SELECT写成SELET。
+（2）漏写逗号或括号。
+（3）字符串未加引号。
+（4）使用了保留字作为表名或列名，需要用反引号括起来。
+解决：逐行检查SQL语句，特别注意标点符号和保留字。
+
+5. ERROR 1146 (42S02): Table 'xxx.yyy' doesn't exist
+原因：表名错误、数据库未切换、表被删除。
+排查：
+（1）执行 SHOW TABLES; 查看当前库有哪些表。
+（2）确认 USE 库名; 是否切换到正确的数据库。
+（3）检查表名拼写是否正确，注意大小写敏感（Linux下默认区分）。
+
+6. ERROR 1054 (42S22): Unknown column 'xxx' in 'field list'
+原因：列名拼写错误、列不存在。
+解决：DESC 表名; 查看表结构，确认列名。
+
+7. ERROR 1052 (23000): Column 'xxx' in field list is ambiguous
+原因：多表查询时列名在多张表中都存在，没有指定表名前缀。
+解决：给列加上表名前缀，如 SELECT e.name, d.dept_name FROM employees e JOIN departments d ON ...
+
+三、数据类型与约束类错误
+
+8. ERROR 1062 (23000): Duplicate entry 'xxx' for key 'xxx'
+原因：插入或更新的数据违反唯一约束/主键约束，值重复了。
+解决：
+（1）确认重复的值，修改为不重复的值。
+（2）如果是业务需要重复数据，不要加唯一索引。
+（3）插入时可使用 INSERT IGNORE 或 ON DUPLICATE KEY UPDATE 处理重复。
+
+9. ERROR 1452 (23000): Cannot add or update a child row: a foreign key constraint fails
+原因：插入子表数据时，外键值在父表中不存在。
+解决：先在父表插入对应记录，再在子表插入；或者检查外键值是否正确。
+
+10. ERROR 1366 (HY000): Incorrect string value
+原因：插入的字符与表的字符集不兼容，常见于emoji或生僻字。
+解决：
+（1）将表和数据库字符集改为utf8mb4。
+（2）ALTER TABLE 表名 CONVERT TO CHARACTER SET utf8mb4;
+（3）MySQL的utf8是3字节，不支持emoji（4字节），必须用utf8mb4。
+
+11. ERROR 1406 (22001): Data too long for column
+原因：插入的数据长度超过了列定义的长度。
+解决：
+（1）缩短数据内容。
+（2）修改列长度：ALTER TABLE 表名 MODIFY COLUMN 列名 VARCHAR(500);
+
+四、事务与锁类错误
+
+12. Lock wait timeout exceeded
+原因：事务等待行锁超时（默认50秒），被其他未提交的事务阻塞。
+排查：
+（1）执行 SHOW ENGINE INNODB STATUS; 查看锁等待情况。
+（2）查看 information_schema.INNODB_TRX 表找到阻塞事务。
+（3）KILL掉阻塞的事务线程ID。
+解决：大事务及时提交、加合适索引避免锁全表、降低隔离级别。
+
+13. Deadlock found when trying to get lock
+原因：两个事务互相持有对方需要的锁，发生死锁。
+InnoDB会自动检测并回滚其中一个事务。
+解决：
+（1）保证多个事务以相同顺序访问表和行。
+（2）缩短事务长度，减少锁持有时间。
+（3）为查询条件加索引，减少锁定的行。
+
+五、索引与性能类问题
+
+14. 查询很慢，全表扫描
+原因：没有合适索引、索引失效、数据量太大。
+排查步骤：
+（1）用 EXPLAIN 查看执行计划，type列是否为ALL（全表扫描）。
+（2）检查key列是否用到了索引。
+（3）检查是否违反最左前缀原则。
+（4）检查索引列是否用了函数、隐式转换。
+解决：添加合适的联合索引，优化查询条件。
+
+15. Using filesort 性能差
+原因：ORDER BY的字段没有用到索引，需要额外排序。
+解决：为ORDER BY的字段建联合索引，注意顺序与排序方向一致。
+
+16. Using temporary 性能差
+原因：GROUP BY或DISTINCT需要创建临时表。
+解决：为GROUP BY的字段建索引，避免额外临时表。
+
+六、主从复制类错误
+
+17. 从库SQL线程报错：Seconds_Behind_Master持续很大
+原因：主从延迟、大事务、从库性能不足。
+排查：SHOW SLAVE STATUS\G 查看Relay_Log_Pos和Exec_Master_Log_Pos差距。
+解决：开启并行复制、拆分大事务、升级从库硬件。
+
+18. 从库复制中断：Got fatal error reading binlog
+原因：Binlog格式不兼容、网络中断、主库Binlog被清理。
+解决：
+（1）重新搭建主从关系。
+（2）确保主从版本一致。
+（3）配置足够大的Binlog保留时间。
+
+七、其他常见问题
+
+19. 中文乱码
+原因：客户端连接字符集与数据库字符集不一致。
+解决：
+（1）SET NAMES utf8mb4;（等同于设置character_set_client、connection、results）。
+（2）配置文件my.cnf中添加 [client] default-character-set=utf8mb4。
+
+20. 自增ID不连续
+原因：删除记录、事务回滚、批量插入失败都会导致自增ID跳号。
+这是正常现象，不要依赖自增ID的连续性。InnoDB自增ID在MySQL8.0前是内存计数，重启会重置；8.0后持久化到redo log。
+
+21. NULL值查询不到
+原因：WHERE 列 != '值' 不会过滤出该列为NULL的行，因为NULL与任何值比较结果都是UNKNOWN。
+解决：WHERE (列 != '值' OR 列 IS NULL);
